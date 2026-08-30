@@ -1,0 +1,5 @@
+# Agent skills and configuration
+.agents/
+skills-lock.json
+AGENTS.md
+docs/agents/

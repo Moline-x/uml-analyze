@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UML 分析器</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; padding: 16px; background: #f7f8fa; }
+    header { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+    .tab { padding: 6px 12px; border: 1px solid #ccc; background: #fff; cursor: pointer; border-radius: 4px; }
+    .tab.active { background: #2b6cb0; color: #fff; border-color: #2b6cb0; }
+    #diagram { background: #fff; border: 1px solid #e2e2e2; border-radius: 6px; padding: 16px; min-height: 420px; overflow: auto; }
+    input[type=text], select { padding: 6px 8px; border: 1px solid #ccc; border-radius: 4px; }
+    button { padding: 6px 12px; border: 1px solid #ccc; background: #fff; border-radius: 4px; cursor: pointer; }
+    button:hover { background: #eee; }
+    .muted { color: #888; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <header>
+    <strong>UML 分析器</strong>
+    <button class="tab active" data-type="class">类图</button>
+    <button class="tab" data-type="component">组件图</button>
+    <button class="tab" data-type="sequence">序列图</button>
+    <span id="seqPick" class="muted" style="display:none">端点：
+      <select id="endpointSelect"></select>
+    </span>
+    <input type="text" id="search" placeholder="搜索类/方法/端点…">
+    <button id="loadBtn">加载 JSON</button>
+    <input type="file" id="fileInput" accept=".json" hidden>
+    <button id="exportSvg">导出 SVG</button>
+    <button id="exportPng">导出 PNG</button>
+    <span id="status" class="muted"></span>
+  </header>
+  <div id="diagram"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

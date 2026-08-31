@@ -3,3 +3,12 @@
 skills-lock.json
 AGENTS.md
 docs/agents/
+
+# TS sidecar
+ts-sidecar/node_modules/
+ts-sidecar/dist/
+
+# Java sidecar
+java-sidecar/build/
+java-sidecar/.gradle/
+java-sidecar/.gradle-home/

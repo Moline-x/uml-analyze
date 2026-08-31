@@ -106,34 +106,60 @@ function toComponentDiagram(nodes, edges, highlight) {
   return lines.join("\n");
 }
 
-function toSequenceDiagram(nodes, edges, startMethodId) {
+function toSequenceDiagram(nodes, edges, endpointId) {
   const methodById = new Map(
     nodes.filter((n) => n.type === "method").map((n) => [n.id, n]),
   );
   const classById = new Map(
     nodes.filter((n) => n.type === "class").map((n) => [n.id, n]),
   );
+  const endpoint = nodes.find((n) => n.id === endpointId);
+  if (!endpoint) return "sequenceDiagram\n  participant None";
+  const entryMethodId = endpoint.methodId;
+
+  const classIds = [];
+  const seenClasses = new Set();
+  const addClass = (cid) => {
+    if (cid && !seenClasses.has(cid)) {
+      seenClasses.add(cid);
+      classIds.push(cid);
+    }
+  };
+  const messages = [];
+
+  // 入站 HTTP_CALL：FE 调用方 → BE 入口（跨边界消息）
+  for (const e of edges) {
+    if (e.type !== "HTTP_CALL" || e.target !== endpointId) continue;
+    const feClass = methodById.get(e.source)?.ownerClassId;
+    const beClass = methodById.get(entryMethodId)?.ownerClassId;
+    if (feClass && beClass) {
+      addClass(feClass);
+      addClass(beClass);
+      messages.push({ from: feClass, to: beClass, label: `${e.httpMethod} ${e.url}`, dashed: true });
+    }
+  }
+
+  // 入口方法所在类确保参与
+  addClass(methodById.get(entryMethodId)?.ownerClassId);
+
+  // 沿 CALL 边 BFS（后端调用路径）
   const adj = new Map();
   for (const e of edges) {
     if (e.type !== "CALL") continue;
     if (!adj.has(e.source)) adj.set(e.source, []);
     adj.get(e.source).push(e.target);
   }
-
-  const startClass = methodById.get(startMethodId)?.ownerClassId;
-  const classIds = startClass ? [startClass] : [];
-  const messages = [];
-  const visited = new Set([startMethodId]);
-  const queue = [startMethodId];
+  const visited = new Set([entryMethodId]);
+  const queue = [entryMethodId];
   while (queue.length) {
     const src = queue.shift();
     const srcClass = methodById.get(src)?.ownerClassId;
     for (const tgt of adj.get(src) || []) {
       const tgtClass = methodById.get(tgt)?.ownerClassId;
       if (!srcClass || !tgtClass) continue;
-      if (!classIds.includes(srcClass)) classIds.push(srcClass);
-      if (!classIds.includes(tgtClass)) classIds.push(tgtClass);
-      messages.push({ from: srcClass, to: tgtClass, label: `${methodById.get(tgt).name}()` });
+      addClass(srcClass);
+      addClass(tgtClass);
+      messages.push({ from: srcClass, to: tgtClass, label: `${methodById.get(tgt).name}()`, dashed: false });
       if (!visited.has(tgt)) {
         visited.add(tgt);
         queue.push(tgt);
@@ -141,14 +167,26 @@ function toSequenceDiagram(nodes, edges, startMethodId) {
     }
   }
 
+  // 参与者按语言分组（FE/BE box）
   const pid = {};
   classIds.forEach((c, i) => (pid[c] = "P" + (i + 1)));
+  const feClasses = classIds.filter((c) => classById.get(c)?.language === "ts");
+  const beClasses = classIds.filter((c) => classById.get(c)?.language !== "ts");
+
   const lines = ["sequenceDiagram"];
-  for (const c of classIds) {
-    lines.push(`  participant ${pid[c]} as ${classById.get(c)?.name ?? c}`);
+  if (feClasses.length) {
+    lines.push('  box "FE"');
+    for (const c of feClasses) lines.push(`    participant ${pid[c]} as ${classById.get(c)?.name ?? c}`);
+    lines.push("  end");
+  }
+  if (beClasses.length) {
+    lines.push('  box "BE"');
+    for (const c of beClasses) lines.push(`    participant ${pid[c]} as ${classById.get(c)?.name ?? c}`);
+    lines.push("  end");
   }
   for (const m of messages) {
-    lines.push(`  ${pid[m.from]}->>${pid[m.to]}: ${m.label}`);
+    const arrow = m.dashed ? "-->>" : "->>";
+    lines.push(`  ${pid[m.from]}${arrow}${pid[m.to]}: ${m.label}`);
   }
   return lines.join("\n");
 }
@@ -160,8 +198,7 @@ function currentCode() {
   if (currentType === "sequence") {
     const ep = endpointSelect.value;
     if (!ep) return "sequenceDiagram\n  participant None";
-    const endpoint = uam.nodes.find((n) => n.id === ep);
-    return toSequenceDiagram(uam.nodes, uam.edges, endpoint.methodId);
+    return toSequenceDiagram(uam.nodes, uam.edges, ep);
   }
   return "";
 }

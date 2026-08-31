@@ -10,11 +10,25 @@ repositories {
     mavenCentral()
 }
 
+configurations {
+    toolingApi
+}
+
 dependencies {
     implementation 'com.github.javaparser:javaparser-symbol-solver-core:3.28.2'
     implementation 'com.google.code.gson:gson:2.11.0'
+    // 编译期只需 tooling-api；运行期 GradleConnector 还需 base-services 等内部 jar，
+    // 全部来自本地 Gradle 发行版 lib（nexus 镜像不可用，无法按 Maven 解析传递依赖）。
+    compileOnly files("${gradle.gradleHomeDir}/lib/gradle-tooling-api-${gradle.gradleVersion}.jar")
+    toolingApi fileTree(dir: "${gradle.gradleHomeDir}/lib", include: ['*.jar'])
 }
 
 application {
     mainClass = 'com.umlanalyze.javasidecar.Main'
+}
+
+// 仅 run 任务需要 Gradle lib（不进 distribution，避免 distZip/distTar 打包巨大）
+tasks.named('run') {
+    classpath += configurations.toolingApi
+    systemProperty 'gradle.home', gradle.gradleHomeDir.absolutePath
 }
